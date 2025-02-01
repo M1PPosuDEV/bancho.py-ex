@@ -72,6 +72,10 @@ DISALLOW_OLD_CLIENTS = read_bool(os.environ["DISALLOW_OLD_CLIENTS"])
 
 DISCORD_AUDIT_LOG_WEBHOOK = os.environ["DISCORD_AUDIT_LOG_WEBHOOK"]
 
+STD_PP_CAP = int(os.environ["STD_PP_CAP"])
+RX_PP_CAP = int(os.environ["RX_PP_CAP"])
+AP_PP_CAP = int(os.environ["AP_PP_CAP"])
+
 AUTOMATICALLY_REPORT_PROBLEMS = read_bool(os.environ["AUTOMATICALLY_REPORT_PROBLEMS"])
 
 LOG_WITH_COLORS = read_bool(os.environ["LOG_WITH_COLORS"])

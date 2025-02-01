@@ -688,7 +688,26 @@ async def osuSubmitModular(
 
         score.time_elapsed = score_time if score.passed else fail_time
 
-        # TODO: re-implement pp caps for non-whitelisted players?
+        if (  # check for pp caps on ranked & approved maps for appropriate players.
+            score.bmap.awards_ranked_pp
+            and not (score.player.priv & Privileges.WHITELISTED or score.player.restricted)
+            and score.mode.as_vanilla == 0
+        ):
+            # Get the PP cap for the current context.
+            pp_cap = app.settings.STD_PP_CAP
+            if score.mode == GameMode.RELAX_OSU:
+                pp_cap = app.settings.RX_PP_CAP
+            if score.mode == GameMode.AUTOPILOT_OSU:
+                pp_cap = app.settings.AP_PP_CAP
+
+            if score.pp > pp_cap and score.passed:
+                await score.player.restrict(
+                    admin=app.state.sessions.bot,
+                    reason=f"[{score.mode!r} {score.mods!r}] autoban @ {score.pp:.2f}pp",
+                )
+                # refresh their client state
+                if score.player.online:
+                    score.player.logout()
 
         """ Score submission checks completed; submit the score. """
 
