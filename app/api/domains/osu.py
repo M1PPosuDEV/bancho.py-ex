@@ -760,7 +760,7 @@ async def osuSubmitModular(
                     assert announce_chan is not None
                     announce_chan.send(" ".join(ann), sender=score.player, to_self=True)
 
-                    if(app.settings.ENABLE_FIRST_PLACES_WEBHOOK):
+                    if app.settings.FIRST_PLACES_WEBHOOK:
                         embed = Embed(
                         title=f"#1 achieved by {score.player.name}",
                         description=f"{score.player.name} has achieved #1 on \nhttps://{app.settings.DOMAIN}/b/{score.bmap.id}",
@@ -1354,7 +1354,7 @@ async def osuSubmitModularSelector(
                     assert announce_chan is not None
                     announce_chan.send(" ".join(ann), sender=score.player, to_self=True)
 
-                    if(app.settings.ENABLE_FIRST_PLACES_WEBHOOK):
+                    if app.settings.FIRST_PLACES_WEBHOOK:
                         embed = Embed(
                         title=f"#1 achieved by {score.player.name}",
                         description=f"{score.player.name} has achieved #1 on \nhttps://{app.settings.DOMAIN}/b/{score.bmap.id}",
