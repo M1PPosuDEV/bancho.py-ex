@@ -27,7 +27,7 @@ from typing import Optional
 from typing import TypedDict
 from urllib.parse import urlparse
 
-import cpuinfo
+import cpuinfos
 import psutil
 import timeago
 from pytimeparse.timeparse import timeparse
@@ -44,6 +44,7 @@ from app.constants.mods import SPEED_CHANGING_MODS
 from app.constants.mods import Mods
 from app.constants.privileges import ClanPrivileges
 from app.constants.privileges import Privileges
+from app.discord import Webhook, Embed
 from app.logging import Ansi
 from app.logging import log
 from app.objects.beatmap import Beatmap
@@ -679,7 +680,20 @@ async def _map(ctx: Context) -> str | None:
         # deactivate rank requests for all ids
         await map_requests_repo.mark_batch_as_inactive(map_ids=modified_beatmap_ids)
 
-    return f"{bmap.embed} updated to {new_status!s}."
+        if app.settings.NOMINATION_WEBHOOK:
+            name = f"{bmap.artist} - {bmap.title} ({bmap.creator}) {f'[{bmap.version}]' if ctx.args[1] == 'map' else ''}"
+            color = 52478 if new_status == RankedStatus.Ranked else 16738218 if new_status == RankedStatus.Loved else 0
+            embed = Embed(title="", description=f"[{name}]({bmap.url}) is now {'ranked' if new_status == RankedStatus.Ranked else 'loved' if new_status == RankedStatus.Loved else 'unranked'}!", timestamp=datetime.utcnow(), color=color)
+            embed.set_author(name=ctx.player.name, icon_url=ctx.player.avatar_url, url=ctx.player.url)
+            embed.set_image(url=f"https://assets.ppy.sh/beatmaps/{bmap.set_id}/covers/card.jpg")
+            embed.set_footer(text="Nomination Tools")
+            webhook = Webhook(app.settings.NOMINATION_WEBHOOK, embeds=[embed])
+            await webhook.post()
+    
+    if ctx.args[1] == "set":
+        return f"[{bmap.set.url} {bmap.artist} - {bmap.title}] updated to {new_status!s}."
+    else:
+        return f"{bmap.embed} updated to {new_status!s}."
 
 
 """ Mod commands
@@ -693,6 +707,8 @@ ACTION_STRINGS = {
     "silence": "Silenced for",
     "unsilence": "Unsilenced for",
     "note": "Note added:",
+    "whitelist": "Whitelisted",
+    "unwhitelist": "Unwhitelisted"
 }
 
 
@@ -817,6 +833,65 @@ async def unsilence(ctx: Context) -> str | None:
 
     await target.unsilence(ctx.player, reason)
     return f"{target} was unsilenced."
+
+@command(Privileges.MODERATOR, hidden=True)
+async def whitelist(ctx: Context) -> str | None:
+    """Adds the verified (whitelisted) role to the specified user, making them invulnerable to first-stage anticheat checks."""
+    if len(ctx.args) < 1:
+        return "Invalid syntax: !whitelist <name>"
+
+    name = " ".join(ctx.args)
+    target = await app.state.sessions.players.from_cache_or_sql(name=name)
+    if not target:
+        return f'"{name}" not found.'
+
+    if target.priv & Privileges.WHITELISTED:
+        return "The user is already whitelisted."
+
+    await app.state.services.database.execute(
+        "INSERT INTO logs "
+        "(`from`, `to`, `action`, `msg`, `time`) "
+        "VALUES (:from, :to, :action, :msg, NOW())",
+        {
+            "from": ctx.player.id,
+            "to": target.id,
+            "action": "whitelist",
+            "msg": "",
+        },
+    )
+
+    await target.add_privs(Privileges.WHITELISTED)
+    return f"{target.embed} was successfully whitelisted."
+
+
+@command(Privileges.MODERATOR, hidden=True)
+async def unwhitelist(ctx: Context) -> str | None:
+    """Removes the verified (whitelisted) role from the specified user, making them invulnerable to first-stage anticheat checks."""
+    if len(ctx.args) < 1:
+        return "Invalid syntax: !unwhitelist <name>"
+
+    name = " ".join(ctx.args)
+    target = await app.state.sessions.players.from_cache_or_sql(name=name)
+    if not target:
+        return f'"{name}" not found.'
+
+    if not target.priv & Privileges.WHITELISTED:
+        return "The user is not whitelisted."
+
+    await app.state.services.database.execute(
+        "INSERT INTO logs "
+        "(`from`, `to`, `action`, `msg`, `time`) "
+        "VALUES (:from, :to, :action, :msg, NOW())",
+        {
+            "from": ctx.player.id,
+            "to": target.id,
+            "action": "unwhitelist",
+            "msg": "",
+        },
+    )
+
+    await target.remove_privs(Privileges.WHITELISTED)
+    return f"{target.embed} was successfully un-whitelisted."
 
 
 """ Admin commands
