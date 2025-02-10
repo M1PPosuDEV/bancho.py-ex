@@ -1106,7 +1106,6 @@ async def osuSubmitModular(
 
     return Response(response)
 
-
 @router.post("/web/osu-submit-modular-selector.php")
 async def osuSubmitModularSelector(
     request: Request,
@@ -1283,7 +1282,25 @@ async def osuSubmitModularSelector(
 
         score.time_elapsed = score_time if score.passed else fail_time
 
-        # TODO: re-implement pp caps for non-whitelisted players?
+        score_eligible = score.bmap.awards_ranked_pp and score.passed
+        player_eligible = not score.player.priv & Privileges.WHITELISTED and not score.player.restricted
+        if score_eligible and player_eligible:
+            caps = {
+                0: 800,  #vn!std
+                4: 1400, #rx!std
+                8: 600   #ap!std
+            }
+
+            # check if pp cap was exceeded
+            if score.mode in caps and score.pp >= caps[score.mode]:
+                await score.player.restrict(
+                    admin=app.state.sessions.bot,
+                    reason=f"[{score.mode!r} autoban] liveplay requested",
+                )
+
+                # refresh their client state
+                if score.player.is_online:
+                    score.player.logout()
 
         """ Score submission checks completed; submit the score. """
 
