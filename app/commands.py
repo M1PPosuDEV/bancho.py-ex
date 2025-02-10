@@ -44,6 +44,7 @@ from app.constants.mods import SPEED_CHANGING_MODS
 from app.constants.mods import Mods
 from app.constants.privileges import ClanPrivileges
 from app.constants.privileges import Privileges
+from app.discord import Webhook, Embed
 from app.logging import Ansi
 from app.logging import log
 from app.objects.beatmap import Beatmap
@@ -679,7 +680,20 @@ async def _map(ctx: Context) -> str | None:
         # deactivate rank requests for all ids
         await map_requests_repo.mark_batch_as_inactive(map_ids=modified_beatmap_ids)
 
-    return f"{bmap.embed} updated to {new_status!s}."
+        if app.settings.NOMINATION_WEBHOOK:
+            name = f"{bmap.artist} - {bmap.title} ({bmap.creator}) {f'[{bmap.version}]' if ctx.args[1] == 'map' else ''}"
+            color = 52478 if new_status == RankedStatus.Ranked else 16738218 if new_status == RankedStatus.Loved else 0
+            embed = Embed(title="", description=f"[{name}]({bmap.url}) is now {'ranked' if new_status == RankedStatus.Ranked else 'loved' if new_status == RankedStatus.Loved else 'unranked'}!", timestamp=datetime.utcnow(), color=color)
+            embed.set_author(name=ctx.player.name, icon_url=ctx.player.avatar_url, url=ctx.player.url)
+            embed.set_image(url=f"https://assets.ppy.sh/beatmaps/{bmap.set_id}/covers/card.jpg")
+            embed.set_footer(text="Nomination Tools")
+            webhook = Webhook(app.settings.NOMINATION_WEBHOOK, embeds=[embed])
+            await webhook.post()
+    
+    if ctx.args[1] == "set":
+        return f"[{bmap.set.url} {bmap.artist} - {bmap.title}] updated to {new_status!s}."
+    else:
+        return f"{bmap.embed} updated to {new_status!s}."
 
 
 """ Mod commands
