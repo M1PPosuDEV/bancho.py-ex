@@ -27,7 +27,7 @@ from typing import Optional
 from typing import TypedDict
 from urllib.parse import urlparse
 
-import cpuinfos
+import cpuinfo
 import psutil
 import timeago
 from pytimeparse.timeparse import timeparse
