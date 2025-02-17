@@ -587,6 +587,10 @@ async def osuSubmitModular(
     # parse the score from the remaining data
     score = Score.from_submission(score_data[2:])
 
+    # prevent scorev2 scores from submitting
+    if score.mods & Mods.SCOREV2:
+        return b"error: no"
+
     # attach bmap & player
     score.bmap = bmap
     score.player = player
